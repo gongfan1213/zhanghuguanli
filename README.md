@@ -1,4 +1,4 @@
-### 第17章 账户管理系统实战
+# 第17章 账户管理系统实战
 #### 17.1 启动一个简单的RESTful服务器
 第15章我们学习了Gin框架的基本操作，下面就来看看如何把Gin框架应用到企业开发中。
 ```go
@@ -38,6 +38,7 @@ func checkServer() error {
 }
 ```
 1. **加载路由**
+   
 main函数通过调用router.Load函数来加载路由：
 ```go
 func Load(engine *gin.Engine, middlewares ...gin.HandlerFunc) *gin.Engine {
@@ -54,6 +55,7 @@ func Load(engine *gin.Engine, middlewares ...gin.HandlerFunc) *gin.Engine {
 }
 ```
 该代码块定义了一个叫作check的分组，在该分组下注册了/health HTTP路径，并路由到health.Health函数。
+
 check分组主要用来检查API Server的健康状况：
 ```go
 // Health 输出“OK”，表示可以访问
@@ -63,7 +65,9 @@ func Health(c *gin.Context) {
 }
 ```
 源代码文件Chapter17/17 - 1：
+
 （1）输入命令go build，生成一个二进制文件17 - 1。
+
 （2）运行二进制文件17 - 1。
 ```
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -74,21 +78,33 @@ func Health(c *gin.Context) {
 2021/03/08 10:04:52 路由成功部署.
 ```
 可以看到监听到了9090端口，路由成功部署。
+
 在浏览器中输入http://127.0.0.1:9090/check/health，发送HTTP GET请求，如果函数正确执行，并且返回的HTTP StatusCode为200，则页面输出“OK”。/check /health路径会匹配到health/health.go中的Health函数，该函数只返回一个字符串：OK。
+
 本节通过一个例子快速启动了一个API服务器，以此介绍Go API的开发流程，在后面的章节中，将讲解如何一步步构建一个企业级的API服务器。
 
 #### 17.2 Viper
 在日常开发中，变更配置文件是十分常见的，因为在不同的环境中，如开发环境、测试环境、预发布环境和生产环境等，配置文件的内容是不同的。在企业级开发中，大多使用Viper进行配置。
+
 **Viper简介**
 Viper是开源的Go语言配置工具，它具有如下特性：
+
 （1）可以设置默认值。
+
 （2）可以读取多种格式的配置文件，如JSON、TOML、YAML、HCL等。
+
 （3）可以监控配置文件改动，并热加载配置文件。
+
 （4）可以从远程配置中心读取配置（etcd/consul），并监控变动。
+
 （5）可以从命令行flag读取配置。
+
 （6）可以从缓存中读取配置。
+
 （7）支持直接设置配置项的值。
+
 Viper不仅功能非常强大，而且用起来十分方便，在初始化配置文件后，读取配置只需要调用viper.GetString、viper.GetInt和viper.GetBool等函数即可。
+
 ```yaml
 # config.yaml
 runmode: debug  # 开发模式有debug模式、release模式和test模式三种
@@ -101,8 +117,11 @@ database:
     username: root
     password: 123456
 ```
+
 如果要读取username配置，则执行viper.GetString("database.username")即可。这里采用了YAML格式的配置文件，因为它包含的内容更丰富，可读性更强。
+
 打开源代码文件17 - 2/main.go：
+
 ```go
 var (
     cfg = flag.String("config", "c", "")
@@ -149,9 +168,12 @@ func checkServer() error {
     return errors.New("无法连接到路由.")
 }
 ```
+
 在main函数中增加了config.Init(*cfg)调用，用来初始化配置。cfg变量值是从命令行flag传入的，既可以传值，比如传入/17 - 2 - c config.yaml，也可以为空。如果为空，则默认读取conf/config.yaml。
 1. **解析配置**
+   
 main函数通过config.Init函数来解析并配置文件（conf/config.yaml）。
+
 打开源代码文件17 - 2/config/config.go：
 ```go
 type Config struct {
@@ -196,10 +218,14 @@ func (c *Config) watchConfig() {
     })
 }
 ```
+
 config.Init函数通过initConfig函数解析配置文件，达到初始化的目的。当配置文件发生变化时，打印日志。注意，除打印日志外，也可以根据实际需求进行其他逻辑处理。
+
 两个函数解析如下。
+
 **[1] func (c *Config) initConfig() error**
 设置并解析配置文件。如果指定了配置文件*cfg，则解析指定的配置文件，否则解析默认的配置文件conf/config.yaml。通过指定配置文件可连接不同的环境（开发环境、测试环境、预发布环境、生产环境）并加载不同的配置，可以方便地开发和测试不同环境之间的部署。
+
 设置如下：
 ```go
 if c.Name != "" {
@@ -210,16 +236,23 @@ if c.Name != "" {
 }
 ```
 这样，config.Init函数中的viper.ReadInConfig函数即可最终调用Viper来解析配置文件了。
+
 **[2] func (c *Config) watchConfig()**
+
 通过该函数的设置，可以让Viper监控配置文件的变更。如果有变更，则热更新程序。
+
 注意：热更新是指在不重启API进程的情况下，让API加载最新配置项的值。
+
 一般来说，更改配置文件是需要重启API的，即让程序重新加载最新的配置文件，而这在生产级环境中是不可取的。
+
 如果使用Viper，则只要更改了配置，程序就可以自动识别最新配置项，是不是很方便呢？ 
 
 
 ### 2. 读取配置项
 API服务器端口号经常需要变更，除此之外，API需要根据不同的模式（开发模式、生产模式、测试模式）来匹配不同的行为。开发模式要求是可配置的，而这些都可以在配置文件中进行配置。
+
 新建配置文件conf/config.yaml（默认配置文件名字为config.yaml），config.yaml中的内容如下：
+
 ```yaml
 runmode: debug  # 开发模式有debug模式、release模式和test模式
 addr: :9090  # 用HTTP绑定端口
@@ -231,11 +264,17 @@ database:
     username: root
     password: 123456
 ```
+
 在Gin中有三种开发模式，分别为debug模式、release模式和test模式。
+
 在日常开发中通常使用的是debug模式，在这种模式下会打印很多debug信息，有利于我们排查错误。
+
 如果发布到生产环境，则使用release模式。
+
 本节的源代码在Chapter17/17 - 2文件中。
+
 （1）输入命令go build命令，生成一个二进制文件17 - 2。
+
 （2）运行二进制文件17 - 2：
 ```
 a@adeiMac 17-2 %./17-2
@@ -249,11 +288,17 @@ a@adeiMac 17-2 %./17-2
 可以看到，在用Viper读取配置文件之后，程序变得更加灵活，并且和原来启动是一样的。
 
 ### 17.3 日志追踪
+
 本节介绍一款大名鼎鼎的Go语言的日志包——Zap，它的优点如下：
+
 （1）能够将事件记录到文件中，而不是应用程序控制台。
+
 （2）能够根据文件大小、时间或间隔等来切割日志文件。
+
 （3）支持不同的日志级别，如INFO、DEBUG、ERROR等。
+
 （4）能够打印基本信息，如调用文件或函数名及行号、日志时间等。
+
 1. **初始化日志包**
 打开本节的源代码文件Chapter17/MyLog/MyLog.go，输入如下代码：
 ```go
@@ -336,6 +381,7 @@ func getWriter(filename string) io.Writer {
 }
 ```
 encoder := zapcore.NewConsoleEncoder 这个方法会设置一些基本的日志格式。
+
 获取info、warn等日志文件的io.Writer抽象getWriter()：
 ```go
 infoHook_1 := os.Stdout
@@ -343,6 +389,7 @@ infoHook_2 := getWriter(out_path)
 errorHook := getWriter(err_path)
 ```
 通过New方法可以得到logger。
+
 注意：需要传入zap.AddCaller()才会显示打日志点的文件名和行数。
 ```go
 logger := zap.New(core, zap.AddCaller())
@@ -380,11 +427,17 @@ main.main
 
 ### 17.4 定义错误码
 在企业级开发中大多是前后端分离开发的，因此作为后端的Go语言需要告诉前端具体是什么错误，以便定位问题。
+
 通常来说，一条错误信息需要包含两部分内容：
+
 （1）直接展示给用户的消息提示。
+
 （2）便于开发人员debug的错误信息。错误信息可能包含敏感信息，因此不宜对外展示。
+
 在开发过程中，我们需要判断错误是哪种类型的，以便做相应的逻辑处理，而通过定制的错误码很容易做到这点。错误码需包含一定的信息，通过错误码我们可以快速判断错误级别、错误模块和具体错误信息。
+
 本节介绍如何定义可以满足业务需求的错误码。
+
 打开本节的源代码文件Chapter 17/myerr/code.go，输入如下代码： （此处仅记录文字，未提及的代码部分未录入） 
 
 ### 17.4 定义错误码
@@ -408,6 +461,7 @@ var (
 )
 ```
 在Chapter17/myerr/errnum.go中声明了一个结构体ErrNum，它包含code和message两个属性。Err包含ErrNum和error两个属性。
+
 （1）返回错误消息。
 ```go
 func (e *ErrNum) Error() string
@@ -482,6 +536,7 @@ func DecodeErr(err error) (int, string) {
 }
 ```
 以用户登录为例，请求login登录接口，如果密码匹配失败，则提示密码错误。
+
 ```go
 if err := utils.Compare(account.Password, m.Password); err != nil {
     res.SendResponse(c, myerr.ErrPassword, nil)
@@ -489,6 +544,8 @@ if err := utils.Compare(account.Password, m.Password); err != nil {
 }
 ```
 运行结果如图17 - 1所示。（此处因无法获取图17 - 1实际内容，未对图相关信息记录）
+
+![image](https://github.com/user-attachments/assets/168dbd88-f53b-49d2-b1f9-5f2f059e5eb2)
 
 ### 17.5 创建账户
 业务逻辑处理是API的核心功能，常见的业务如下：
@@ -499,6 +556,7 @@ if err := utils.Compare(account.Password, m.Password); err != nil {
 - 查询指定账户的信息。
 1. **路由配置**
 在创建账户之前，需要做路由配置。下面在Chapter 17/router/router.go文件中配置路由信息：
+
 ```go
 account := engine.Group("/v1/account")
 {
@@ -511,11 +569,17 @@ account := engine.Group("/v1/account")
 }
 ```
 创建账户的步骤如下：
+
 （1）从HTTP消息体获取参数（用户名和密码）。
+
 （2）参数校验。
+
 （3）加密密码。
+
 （4）在数据库中添加数据记录。
+
 （5）返回结果（这里是用户名）。
+
 打开源码文件Chapter17/handler/account.go，输入如下代码：
 ```go
 //新建一个Account（用户名）
@@ -594,8 +658,15 @@ func (m *AccountModelRepo) CreateAccount(account model.Account) error {
 ``` 
 ### 17.5 创建账户
 在上述代码中，是通过CreateAccount函数向数据库中添加记录的。
+
 另外，使用postwoman工具可以调试RESTful风格的接口。在添加成功后，会输出新建账户的名称——Tom，如图17 - 2所示。（此处因无法获取图17 - 2实际内容，未对图相关信息记录）
+
+![image](https://github.com/user-attachments/assets/3c71d48b-71a0-4163-82e2-7daf753444c5)
+
 在数据库中，打开Mysql WorkBench，输入下面的SQL语句，显示如图17 - 3所示。（此处因无法获取图17 - 3实际内容，未对图相关信息记录）
+
+![image](https://github.com/user-attachments/assets/e6bf532d-9b8f-4cfe-b595-e079cec62ba0)
+
 ```sql
 SELECT * FROM db.account;
 ```
@@ -615,7 +686,9 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 }
 ```
 （1）获取要删除的ID。
+
 （2）执行删除方法h.Srv.DeleteAccount()。
+
 打开源代码文件Chapter17/service/account.go，输入如下内容：
 ```go
 func (ac *AccountService) DeleteAccount(id string) error{
@@ -636,11 +709,17 @@ func (m *AccountModelRepo) DeleteAccount(id string) error {
 这里通过调用Delete方法删除了用户，这种删除是物理删除。还有一种删除叫作软删除，就是在数据库中设置delete_status字段，0表示正常，1表示删除，进而更新delete_status字段得到删除的效果。
 
 ### 17.7 更新账户
+
 更新账户的主要步骤如下：
+
 （1）获取要更新的accountId。
+
 （2）绑定account。
+
 （3）验证参数。
+
 （4）更新操作。
+
 打开源代码文件Chapter17/handler/account.go，输入如下内容：
 ```go
 func (h *AccountHandler) Update(c *gin.Context) {
@@ -667,10 +746,18 @@ func (h *AccountHandler) Update(c *gin.Context) {
 }
 ```
 在service层中，我们做业务逻辑判断的步骤如下：
+
 （1）搜索要更新的账户，如果不存在，则返回错误信息给前端。
+
 （2）如果搜索的账户ID为空，刚返回错误信息给前端。
+
 根据业务场景，可以继续增加业务逻辑判断。
+
 当业务逻辑判断都成功时，才调用数据访问层的UpdateAccount方法进行更新。如图17 - 4所示。（此处因无法获取图17 - 4实际内容，未对图相关信息记录）
+
+![image](https://github.com/user-attachments/assets/34df1b24-7227-41d4-a02b-8b33b2263ee5)
+
+
 ```go
 func (ac *AccountService) UpdateAccount(account model.Account) error {
     accountInfo, err := ac.Repo.GetAccountInfo(account.AccountId)
@@ -695,8 +782,12 @@ func (m *AccountModelRepo) UpdateAccount(account model.Account) error {
 更新后的数据库对应记录如图17 - 5所示。（此处因无法获取图17 - 5实际内容，未对图相关信息记录）
 从图17 - 5可以看出，账户名已成功由原来的Tom更新为Tom777。
 
+![image](https://github.com/user-attachments/assets/a24c8f35-c8fc-425c-8c81-0a63e7c61c36)
+
 ### 17.8 账户列表
+
 本节实现如何从数据库里分页取得账户列表。用户在注册以后，我们会把用户的数据直接记录到数据库中，在需要展示时，再通过页面展示出来。如果账户列表里面有1000条甚至更多的数据，则不会一次性都展示出来，因为一次性展示出来会占用大量的带宽，让前端页面一直等待，用户体验非常差，甚至有页面卡死的情况。分页的好处是，一次只拿固定数量的账户数据，而且速度很快，这样前端页面展示也会很快，用户体验很好。
+
 打开源代码文件Chapter17/handler/account.go，输入如下内容：
 ```go
 func (h *AccountHandler) ListAccount(c *gin.Context) {
@@ -765,6 +856,9 @@ func (m *AccountModelRepo) ListAccount(offset, limit int) ([]*Model, uint64, err
 ```
 账户列表如图17 - 6所示，我们可以根据分页的条件返回数据，同时可以返回数据库内一共有多少条数据。在日常开发中，密码是不返回的，除此之外，对于一些敏感信息也是不返回的，比如身份证号码等。另外，对手机号也进行了一定的处理，比如中间加入*号来隐藏信息。这里暂且只返回账户名称，在生产环境中可以返回更多的信息。（此处因无法获取图17 - 6实际内容，未对图相关信息记录） 
 
+![image](https://github.com/user-attachments/assets/25cdacec-6f64-404e-b658-93a482c181cf)
+
+
 ### 17.9 根据账户名称查询用户信息
 打开本节的源码文件Chapter17/handler/account.go，输入如下内容：
 ```go
@@ -788,6 +882,7 @@ func (ac *AccountService) GetAccount(accountName string) (model.Account, error) 
 }
 ```
 下面根据传入的账户名称在数据库中查询并获取账户信息。
+
 打开本节的源码文件Chapter17/repository/account.go，输入如下内容：
 ```go
 func (m *AccountModelRepo) GetAccount(name string) (model.Account, error) {
@@ -800,32 +895,53 @@ func (m *AccountModelRepo) GetAccount(name string) (model.Account, error) {
 }
 ```
 至此，我们就通过给定的账户名称找到了一个账户，并返回给前端，如图17 - 7所示。（此处因无法获取图17 - 7实际内容，未对图相关信息记录）
+![image](https://github.com/user-attachments/assets/ffec4a59-1859-4d54-8efa-e93943962190)
+
+
 
 ### 17.10 OAuth 2.0简介
+
 OAuth 2.0是一种授权协议，它可以用来保证第三方（软件）只有在获得授权之后，才可以进一步访问授权者的数据。
+
 OAuth 2.0是如何运转的呢？下面把“小明”“生活点评”“微信开放平台”放到一个场景里，看看它们是如何沟通的。
+
 小明：生活点评，我正在浏览器上，需要访问你来帮我查询我的订餐订单。
+
 生活点评：好的，小明，我必须有你的微信个人信息才能查询你的订餐订单，现在我把你引导到微信开放平台上，需要你给我授权。
+
 微信开放平台：你好，小明，我收到了生活点评跳转过来的请求，现在已经准备好了授权页面。你登录并确认后，单击授权页面上的“授权”按钮就可以了。
+
 小明：好的，微信开放平台，我已看到授权页面，并已单击完授权按钮了。
+
 微信开放平台：你好，生活点评，我已收到小明的授权，现在给你生成一个授权码。我将通过浏览器重定向到你的回调URL地址。
+
 生活点评：好的，微信开放平台，我已从浏览器上拿到了授权码，现在就用这个授权码请求你给我一个访问令牌。
+
 微信开放平台：好的，生活点评，访问令牌已经发送给你了。
+
 生活点评：我已收到令牌，现在可以使用令牌访问小明的订单了。
+
 小明：我已经看到我的订单了。
+
 至此，相信你已完全明白OAuth 2.0是如何运转的了。
 
 ### 17.11 OAuth 2.0的四种授权模式
+
 当客户端想要访问某一个资源时，此时有两个角色——客户端和资源所有者。只有在资源所有者同意之后，资源服务器才可以向客户端颁发令牌。客户端在拿到令牌后，每次请求资源时，都要带着这个令牌，以便资源服务器通过验证后，才能放行，继续获取资源。
+
 OAuth 2.0提供了4种授权模式：
+
 - 授权码（authorization_code）；
 - 隐藏式（implicit）；
 - 密码式（password）；
 - 客户端凭证（client_credentials）。
+  
 无论使用哪一种授权模式，第三方应用在申请令牌之前，都必须到相应的系统进行备案。在本例中需要到微信小程序系统进行备案，以便拿到身份识别码的客户端ID（client id）和客户端密钥（client_secret）。这是区分该应用与其他应用的凭证，如果不做备案，那么是拿不到小程序令牌的。
 1. **授权码**
 授权码是指第三方应用先申请一个授权码，然后用该授权码获取令牌。这种方式最为常用，安全性也最高，适用于有后端的Web应用。
+
 授权码是通过前端（页面）发送的，而令牌则存储在后端，所有与资源服务器的通信都在后端完成的，这样即可避免令牌泄露。
+
 第1步，A应用向开放平台发出请求：
 ```
 https://开放平台/oauth/authorize?
@@ -877,15 +993,21 @@ https://coolpest8.com/oauth/authorize?
     redirect_uri=CALLBACK_URL&
     scope=read
 ```
+
 其中，参数response_type表示要求直接返回令牌。
+
 第2步，用户跳转到开放平台，登录后同意给予A应用授权。
+
 此时开放平台会跳回redirect_uri参数指定的网址，并且把令牌作为URL参数传给A应用。格式如下：
 ```
 https://a.com/callback#token=ACCESS_TOKEN
 ```
 其中，token参数是令牌，因此A应用可直接在前端拿到令牌。
+
 这种方式是把令牌直接传送给前端，因而很不安全。
+
 隐藏式只能用在一些对安全要求不高的场景，并且令牌的有效期必须非常短，通常是仅在会话期间（session）有效，当浏览器关掉后，令牌就失效了。 
+
 3. **密码式** 
 A应用要求用户提供他在B网站的用户名和密码，在拿到以后，A应用可直接向B网站请求令牌。 （此处未提及相关代码，无代码记录） 
 
@@ -900,8 +1022,11 @@ https://开放平台/token?
     client_id=CLIENT_ID
 ```
 其中，参数grant_type是授权方式，这里的password表示使用的是“密码式”，username和password是B的用户名和密码。
+
 第2步，开放平台在验证身份通过后，直接给出令牌。
+
 注意：这里不需要跳转，而是把令牌放在JSON数据里面作为HTTP返回给A应用，从而A应用拿到令牌。
+
 这种方式需要用户给出自己的用户名和密码，显然风险很大。一般在同一家公司的不同应用之间可以使用密码式。
 4. **凭证式** 
 第1步，A应用向开放平台发出请求：
@@ -912,12 +1037,16 @@ https://开放平台/token?
     client_secret=CLIENT_SECRET
 ```
 其中，参数grant_type是client_credentials，表示采用的是“凭证式”；参数client_id和参数client_secret可以让开放平台确认A应用的身份。
+
 第2步，开放平台在验证通过以后，直接返回令牌。
+
 这种方式给出的令牌是针对第三方应用的，而不是针对用户的，即有可能出现多个用户共享同一个令牌的情况。
+
 这种要注意使用场景，防止更新多个令牌的风险。
 
 ### 使用令牌
 A应用在拿到令牌之后，就可以向B网站的API请求数据了。
+
 每次请求API时，在header中都必须带上令牌，格式如下：
 ```
 curl -H "Authorization: Bearer ACCESS_TOKEN" \
@@ -926,6 +1055,7 @@ curl -H "Authorization: Bearer ACCESS_TOKEN" \
 
 ### 更新令牌
 在令牌的有效期到了之后，用户无须重新“走”一遍上面的流程，再申请一个新的令牌，因为OAuth 2.0允许用户自动更新令牌。具体方法是，开放平台在颁发令牌时，一次性颁发两个令牌，一个用于获取数据，另一个用于获取新的令牌（refresh_token）。在令牌到期之前，用户可使用refresh_token发起一个请求去更新令牌。
+
 A应用向开放平台发出请求：
 ```
 https://开放平台/oauth/token?
@@ -938,9 +1068,17 @@ https://开放平台/oauth/token?
 - 参数grant_type为refresh_token时表示要求更新令牌；
 - 参数client_id和参数client_secret用来确认身份；
 - 参数refresh_token表示使用更新后的令牌。
+
+  
 开放平台在验证通过之后，就可以颁发新的令牌给用户了。开放平台总是使用用户的openId来标识一个用户的，我们可以在Account表中保存这个字段，当用户授权且开放平台回调后，我们就可以拿到用户的openId了，具体如图17 - 8所示。（此处因无法获取图17 - 8实际内容，未对图相关信息记录）
+
+![image](https://github.com/user-attachments/assets/7e6de6e6-e594-4f5d-a112-35590cbe2095)
+
+
 （1）在开放平台注册应用，获取appId和appSecret。
+
 （2）通过wx.login方法拿到code，这个code是在前端返回的。
+
 （3）前端首先通过接口调用后端（开发者服务器，就是我们写的Go程序），然后再调用auth.code2Session接口，获取openId和会话密钥sessionKey。Go程序请求接口如下：
 ```
 https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=JSCODE&grant_type=authorization_code
